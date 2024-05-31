@@ -26,9 +26,10 @@ PdfCommon >> readNumberFrom: s [
 { #category : #private }
 PdfCommon >> readTokenFrom: s [
 
-	| str |	self skipWhitespace: s.
+	| str |
+	self skipWhitespace: s.
 	str := ''.
-	[ s peek asCharacter isPdfWhitespace ] whileFalse: [
+	[ s peek asCharacter isPdfRegular ] whileTrue: [
 		str := str , s next asCharacter asString ].
 	^ str
 ]

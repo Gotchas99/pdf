@@ -41,6 +41,17 @@ PdfObject >> readArrayFrom: s [
 ]
 
 { #category : #streaming }
+PdfObject >> readCommentFrom: s [
+"inte gjord än"
+	| str |
+self halt. 	s next.
+	str := (s upTo: $) charCode) asString.
+	s next.
+	self skipWhitespace: s.
+	^ str
+]
+
+{ #category : #streaming }
 PdfObject >> readDictOrStreamFrom: s [
 
 	| tmp oldPos nextWord |
@@ -96,8 +107,10 @@ PdfObject >> readIndirectFrom: s [
 
 	| token |
 	id := self readNumberFrom: s.
-		self skipWhitespace: s.version := self readNumberFrom: s.
-	self skipWhitespace: s.	token := self readLineFrom: s.
+	self skipWhitespace: s.
+	version := self readNumberFrom: s.
+	self skipWhitespace: s. 
+	token := self readLineFrom: s.
 	token = 'obj' ifFalse: [ Error signal: 'not an obj' ].
 	content := self readObjectFrom: s.
 	token := self readLineFrom: s.
@@ -157,6 +170,7 @@ PdfObject >> readObjectFrom: s [
 	ch = $/ ifTrue: [ ^ self readNameFrom: s ].
 	ch = $[ ifTrue: [ ^ self readArrayFrom: s ].
 	ch = $( ifTrue: [ ^ self readStringFrom: s ].
+	ch = $% ifTrue: [ ^ self readCommentFrom: s ].
 	ch isDigit ifTrue: [ ^ self readNumericFrom: s ].
 	self halt
 ]
@@ -166,7 +180,7 @@ PdfObject >> readStreamFrom: s dict: dict [
 
 	| token len |
 	len := dict at: #Length.
-	token := self readLineFrom: s.
+	token := (self readLineFrom: s)trimmed.
 	token = 'stream' ifFalse: [ Error signal: 'not a stream' ].
 	content := s next: len.
 	self skipWhitespace: s.
