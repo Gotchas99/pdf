@@ -12,39 +12,43 @@ Class {
 }
 
 { #category : #accessing }
+PdfFile >> body [
+
+	^ body 
+]
+
+{ #category : #accessing }
 PdfFile >> fname: aString [
 
 	fname := aString 
 ]
 
 { #category : #accessing }
-PdfFile >> parse [
+PdfFile >> info [
 
-	(File named: fname) readStreamDo: [ :s |
-		trailer := self readTrailerFrom: s.
-		header := self readHeaderFrom: s.
-		body := self readBodyFrom: s.
-		"xref := self readXrefFrom: s" ]
+	^ body at: (trailer at: #Info) first
 ]
 
 { #category : #accessing }
-PdfFile >> parse_old [
+PdfFile >> parse [
 
-	fname asFileReference binaryReadStreamDo: [ :s |
-		
+	(File named: fname) readStreamDo: [ :s |
 		header := self readHeaderFrom: s.
-		body := self readBodyFrom: s.
-		xref := self readXrefFrom: s .trailer := self readTrailerFrom: s.]
+		trailer := self readTrailerFrom: s.
+		body := self readBodyFrom: s
+		"xref := self readXrefFrom: s" ]
 ]
 
 { #category : #streaming }
 PdfFile >> readBodyFrom: s [
 
-	| tmp |
-	tmp := OrderedCollection new.
-	xref values select: [ :v | v third = $n ] thenDo: [ :v | 	s position: v first.
-		tmp add: (self readObjectFrom: s) ].
-	^ tmp
+	| dict obj  |
+	dict := Dictionary new.
+	xref values select: [ :v | v third = $n ] thenDo: [ :v |
+		s position: v first.
+		obj := PdfObject new readIndirectFrom: s.
+		dict at: obj id put: obj ].
+	^ dict
 ]
 
 { #category : #streaming }
@@ -60,35 +64,14 @@ PdfFile >> readHeaderFrom: s [
 ]
 
 { #category : #streaming }
-PdfFile >> readLineFrom: s [
-
-	| line |
-	self flag: 'should handle cr, lf & crlf'.
-	"ascii 10 is linefeed (lf)"
-	line := (s upTo: 10) asString.
-	(line > '' and: [ line last = Character lf ]) ifTrue: [
-		line := line allButLast ].
-	(line > '' and: [ line last = Character cr ]) ifTrue: [
-		line := line allButLast ].
-	^ line
-]
-
-{ #category : #streaming }
-PdfFile >> readObjectFrom: s [
-
-	| o |
-	o:= PdfObject new readIndirectFrom: s.
-	^o
-]
-
-{ #category : #streaming }
 PdfFile >> readTokenReverseFrom: s [
 
 	| str |
 	self skipWhitespaceReverse: s.
 	str := ''.
 	[ s peek asCharacter isPdfWhitespace ] whileFalse: [
-		str := str , s next asCharacter asString. s skip:-2 ].
+		str := str , s next asCharacter asString.
+		s skip: -2 ].
 	^ str reverse
 ]
 
@@ -112,19 +95,6 @@ PdfFile >> readTrailerFrom: s [
 ]
 
 { #category : #streaming }
-PdfFile >> readTrailerFrom_old: s [
-
-	| dict |
-	dict := PdfObject new readDictOrStreamFrom: s.
-	(self readLineFrom: s) = 'startxref' ifFalse: [
-		Error signal: 'not startxref in trailer' ].
-	self readLineFrom: s.
-	(self readLineFrom: s) = '%%EOF' ifFalse: [
-		Error signal: 'not %%EOF in trailer' ].
-	^ dict
-]
-
-{ #category : #streaming }
 PdfFile >> readXrefFrom: s [
 
 	| token dict firstNo noOfObjects num gen type |
@@ -137,7 +107,7 @@ PdfFile >> readXrefFrom: s [
 		self skipWhitespace: s.
 		num := self readNumberFrom: s.
 		gen := self readNumberFrom: s.
-		s skip: 1.
+		"s skip: 1."
 		type := s next asCharacter.
 		dict at: i put: {
 				num.
@@ -152,6 +122,12 @@ PdfFile >> readXrefFrom: s atPosition: anInteger [
 
 	s position: anInteger.
 	^self readXrefFrom: s
+]
+
+{ #category : #accessing }
+PdfFile >> root [
+
+	^ body at: (trailer at: #Root) first
 ]
 
 { #category : #streaming }

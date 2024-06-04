@@ -4,13 +4,43 @@ Class {
 	#instVars : [
 		'id',
 		'version',
-		'content'
+		'content',
+		'objType'
 	],
 	#category : #'CAs-Pdf'
 }
 
+{ #category : #comparing }
+PdfObject >> <= anObj [
+
+^	id <= anObj id
+]
+
+{ #category : #accessing }
+PdfObject >> content [ ^content
+]
+
 { #category : #api }
 PdfObject >> decode [ ^content decode
+]
+
+{ #category : #accessing }
+PdfObject >> id [
+
+	^ id
+]
+
+{ #category : #initialization }
+PdfObject >> initialize [ 
+objType:='???'
+]
+
+{ #category : #accessing }
+PdfObject >> objType [
+
+
+	^ objType 
+	
 ]
 
 { #category : #printing }
@@ -19,8 +49,9 @@ PdfObject >> printOn: aStream [
 	aStream nextPutAll: ' -> '.
 	self to printOn: aStream"
 
-	aStream << 'PdfObj: '.
-	id ifNotNil: [ aStream << id asString ]
+	aStream << 'PdfObj(' << objType << '): '.
+	id ifNotNil: [ aStream << id asString ].
+	objType = #dict ifTrue: [ aStream << '-' << (content at: #Type ifAbsent: '***') ]
 ]
 
 { #category : #streaming }
@@ -71,7 +102,7 @@ PdfObject >> readDictOrStreamFrom: s [
 PdfObject >> readDictionaryFrom: s [
 
 	| ent dict |
-	dict := Dictionary new. 
+	dict := Dictionary new.
 	[
 	self skipWhitespace: s.
 	s peek asCharacter = $> ] whileFalse: [
@@ -79,6 +110,7 @@ PdfObject >> readDictionaryFrom: s [
 		dict add: ent ].
 	s next: 2.
 	self skipWhitespace: s.
+	objType:='dict'.
 	^ dict
 ]
 
@@ -107,9 +139,7 @@ PdfObject >> readIndirectFrom: s [
 
 	| token |
 	id := self readNumberFrom: s.
-	self skipWhitespace: s.
 	version := self readNumberFrom: s.
-	self skipWhitespace: s. 
 	token := self readLineFrom: s.
 	token = 'obj' ifFalse: [ Error signal: 'not an obj' ].
 	content := self readObjectFrom: s.
@@ -125,17 +155,6 @@ PdfObject >> readIntegerFrom: s [
 	[ (digit := s next) between: 48 and: 57 ] whileTrue: [
 		res := res * 10 + (digit-48) ].
 	^ res
-]
-
-{ #category : #streaming }
-PdfObject >> readLineFrom: s [
-
-	| line |
-	self flag: 'should handle cr, lf & crlf'.
-	"ascii 10 is linefeed (lf)"
-	line := (s upTo: 10) asString.
-	"s next."
-	^ line
 ]
 
 { #category : #streaming }
@@ -160,6 +179,7 @@ PdfObject >> readNumericFrom: s [
 PdfObject >> readObjectFrom: s [
 
 	| ch |
+	self flag: 'Doesn''t do booleans or null'.
 	self skipWhitespace: s.
 	ch := s peek asCharacter.
 	ch = $< ifTrue: [
@@ -172,7 +192,8 @@ PdfObject >> readObjectFrom: s [
 	ch = $( ifTrue: [ ^ self readStringFrom: s ].
 	ch = $% ifTrue: [ ^ self readCommentFrom: s ].
 	ch isDigit ifTrue: [ ^ self readNumericFrom: s ].
-	self halt
+	ch = $-  ifTrue: [ ^ self readNumericFrom: s ].
+	Error signal: 'Unknown type-indicator:' , ch asString
 ]
 
 { #category : #streaming }
@@ -180,12 +201,13 @@ PdfObject >> readStreamFrom: s dict: dict [
 
 	| token len |
 	len := dict at: #Length.
-	token := (self readLineFrom: s)trimmed.
+	token := (self readLineFrom: s) trimmed.
 	token = 'stream' ifFalse: [ Error signal: 'not a stream' ].
 	content := s next: len.
 	self skipWhitespace: s.
 	token := self readLineFrom: s.
 	token = 'endstream' ifFalse: [ Error signal: 'not an endstream' ].
+	objType:='stream'.
 	^ PdfStream new
 		  dict: dict;
 		  content: content
