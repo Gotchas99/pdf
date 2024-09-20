@@ -216,10 +216,10 @@ PdfObject >> readStreamFrom: s dict: dict [
 { #category : #streaming }
 PdfObject >> readStringFrom: s [
 
-	|  str |
+	| str |
 	s next.
 	str := (s upTo: $) charCode) asString.
-	s next.
+	"s next."
 	self skipWhitespace: s.
 	^ str
 ]

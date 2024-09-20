@@ -41,10 +41,16 @@ PdfStream >> content: anObject [
 { #category : #accessing }
 PdfStream >> decode [
 
+	^self decodeBytes  asString
+]
+
+{ #category : #accessing }
+PdfStream >> decodeBytes [
+
 	| z |
-	(dict at: 'Filter') = 'FlateDecode' ifFalse: [ ^ content asString].
+	(dict at: 'Filter') = 'FlateDecode' ifFalse: [ ^ content asString ].
 	z := ZLibReadStream on: content.
-^	z contents asString
+	^ z contents 
 ]
 
 { #category : #accessing }
